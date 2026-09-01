@@ -1,0 +1,33 @@
+name: Build iThynk Windows Calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+      - name: Validate source
+        run: python -m compileall -q main.py ithynk
+      - name: Build Windows application
+        run: pyinstaller --noconfirm --clean --windowed --name iThynk-v1.1-calibration --collect-all customtkinter --collect-all keyring main.py
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: iThynk-v1.1-calibration-windows
+          path: dist/iThynk-v1.1-calibration/
+          if-no-files-found: error
