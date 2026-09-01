@@ -1,0 +1,2 @@
+{"tenant_id":"YOUR_TENANT_ID","client_id":"YOUR_ENTRA_PUBLIC_CLIENT_ID","sharepoint_hostname":"YOUR_TENANT.sharepoint.com","sharepoint_site_path":"/sites/YOUR_SITE","sharepoint_list_name":"YOUR_QUEUE_LIST","idocs_url":"https://YOUR_AUTHORISED_IDOCS_LOGIN_URL","poll_seconds":5,"headless":false,"accepted_statuses":["Created Applicant","Budgets Generated","Signed","Form16 Sent"]}
+
