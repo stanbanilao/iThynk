@@ -7,7 +7,7 @@ from ithynk.idocs import IDocsRobot
 ctk.set_appearance_mode("dark")
 class App(ctk.CTk):
     def __init__(self):
-        super().__init__(); self.title("iThynk v1.0"); self.geometry("940x650"); self.configure(fg_color="#100f0e")
+        super().__init__(); self.title("iThynk v1.1 Calibration"); self.geometry("940x790"); self.minsize(900,720); self.configure(fg_color="#100f0e")
         self.events=queue.Queue(); self.stop_event=threading.Event(); self.settings=load_settings(); self._ui(); self.after(150,self._drain)
     def _ui(self):
         header=ctk.CTkFrame(self,fg_color="#191715",corner_radius=0); header.pack(fill="x")
@@ -18,7 +18,7 @@ class App(ctk.CTk):
         right=ctk.CTkFrame(body,fg_color="#191715"); right.pack(side="left",fill="both",expand=True)
         ctk.CTkLabel(left,text="Connection Settings",font=("Segoe UI",16,"bold")).pack(anchor="w",padx=16,pady=(16,8))
         self.inputs={}; email,password=get_idocs_credentials()
-        fields=[("Tenant ID","tenant_id"),("Entra Client ID","client_id"),("SharePoint Host","sharepoint_hostname"),("Site Path","sharepoint_site_path"),("List Name","sharepoint_list_name"),("iDocs Email","idocs_email"),("iDocs Password","idocs_password")]
+        fields=[("Tenant ID","tenant_id"),("Entra Client ID","client_id"),("SharePoint Host","sharepoint_hostname"),("Site Path","sharepoint_site_path"),("List Name","sharepoint_list_name"),("iDocs URL","idocs_url"),("iDocs Email","idocs_email"),("iDocs Password","idocs_password")]
         for label,key in fields:
             ctk.CTkLabel(left,text=label,text_color="#aaa29a").pack(anchor="w",padx=16)
             entry=ctk.CTkEntry(left,width=315,show="*" if key=="idocs_password" else ""); entry.pack(padx=16,pady=(3,9))
@@ -41,7 +41,7 @@ class App(ctk.CTk):
         data={k:v.get().strip() for k,v in self.inputs.items()}
         if not all(data.values()): self.log("Complete every connection setting first."); return
         save_idocs_credentials(data.pop("idocs_email"),data.pop("idocs_password"))
-        data.update({"idocs_url":"https://i-docs.co.za/login.xhtml","poll_seconds":5,"headless":False,"accepted_statuses":["Created Applicant","Budgets Generated","Signed","Form16 Sent"]})
+        data.update({"poll_seconds":5,"headless":False,"accepted_statuses":["Created Applicant","Budgets Generated","Signed","Form16 Sent"]})
         save_settings(data); self.settings=data; self.stop_event.clear(); self.start_btn.configure(state="disabled"); self.stop_btn.configure(state="normal")
         threading.Thread(target=self._run,daemon=True).start()
     def start_calibration(self):
@@ -53,7 +53,10 @@ class App(ctk.CTk):
             self.log("Enter the authorised iDocs email and password first."); return
         save_idocs_credentials(email,password)
         settings=dict(self.settings)
-        settings.update({"idocs_url":"https://i-docs.co.za/login.xhtml","headless":False,"accepted_statuses":["Created Applicant","Budgets Generated","Signed","Form16 Sent"]})
+        idocs_url=self.inputs["idocs_url"].get().strip()
+        if not idocs_url:
+            self.log("Enter the authorised iDocs login URL first."); self.calibrate_btn.configure(state="normal"); return
+        settings.update({"idocs_url":idocs_url,"headless":False,"accepted_statuses":["Created Applicant","Budgets Generated","Signed","Form16 Sent"]})
         self.calibrate_btn.configure(state="disabled")
         threading.Thread(target=self._run_calibration,args=(settings,email,password,rsa_id),daemon=True).start()
     def _run_calibration(self,settings,email,password,rsa_id):
@@ -95,3 +98,4 @@ class App(ctk.CTk):
             if robot: robot.stop()
             self.after(0,lambda:(self.start_btn.configure(state="normal"),self.stop_btn.configure(state="disabled")))
 if __name__=="__main__": App().mainloop()
+
