@@ -1,4 +1,4 @@
-name: Build iThynk Windows Calibration
+name: Build iThynk Windows PDF Reader
 
 on:
   workflow_dispatch:
@@ -8,26 +8,53 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: "0"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           playwright install chromium
+
       - name: Validate source
-        run: python -m compileall -q main.py ithynk
+        run: python -m compileall -q main.py ithynk tests
+
+      - name: Run extractor tests
+        run: python -m unittest discover -s tests -v
+
       - name: Build Windows application
-        run: pyinstaller --noconfirm --clean --windowed --name iThynk-v1.1-calibration --collect-all customtkinter --collect-all keyring main.py
+        run: >-
+          pyinstaller
+          --noconfirm
+          --clean
+          --windowed
+          --name iThynk-v1.2-pdf-reader
+          --collect-all customtkinter
+          --collect-all keyring
+          --collect-all playwright
+          main.py
+
+      - name: Verify Windows executable exists
+        shell: pwsh
+        run: |
+          $exe = "dist/iThynk-v1.2-pdf-reader/iThynk-v1.2-pdf-reader.exe"
+          if (!(Test-Path $exe)) { throw "Windows executable was not created" }
+          Get-Item $exe | Format-List Name,Length,LastWriteTime
+
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
-          name: iThynk-v1.1-calibration-windows
-          path: dist/iThynk-v1.1-calibration/
+          name: iThynk-v1.2-pdf-reader-windows
+          path: dist/iThynk-v1.2-pdf-reader/
           if-no-files-found: error
+          compression-level: 6
