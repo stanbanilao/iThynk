@@ -1,6 +1,6 @@
 import io
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +30,16 @@ class ExtractedField:
     confidence: str
     review_required: str
 
+    def as_preview(self):
+        return {
+            "field": self.field_name,
+            "value": self.value,
+            "pdf_label": self.pdf_label,
+            "page": self.page_number,
+            "confidence": self.confidence,
+            "review_required": self.review_required,
+        }
+
 
 def normalise(value):
     return re.sub(r"\s+", " ", str(value or "")).strip()
@@ -41,8 +51,13 @@ def mask_id(value):
 
 
 def extract_pdf_text(pdf_bytes):
+    if not pdf_bytes:
+        raise ValueError("The iDocs PDF preview returned no data")
     reader = PdfReader(io.BytesIO(pdf_bytes))
-    return [(index + 1, page.extract_text() or "") for index, page in enumerate(reader.pages)]
+    pages = [(index + 1, page.extract_text() or "") for index, page in enumerate(reader.pages)]
+    if not pages:
+        raise ValueError("The iDocs PDF has no readable pages")
+    return pages
 
 
 def extract_fields(pages, mappings=None):
@@ -85,6 +100,13 @@ def verify_document_id(submitted_id, extracted):
     return "Mismatch", "The submitted ID does not match the document ID"
 
 
+def read_pdf_preview(pdf_bytes, submitted_id):
+    pages = extract_pdf_text(pdf_bytes)
+    extracted = extract_fields(pages)
+    verification, note = verify_document_id(submitted_id, extracted)
+    return pages, extracted, verification, note
+
+
 def write_calibration_workbook(output_path, submitted_id, source_name, pages, extracted, method="Selectable PDF text"):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,7 +132,7 @@ def write_calibration_workbook(output_path, submitted_id, source_name, pages, ex
         raw.append([page_number, text])
 
     meta = wb.create_sheet("Field Mapping")
-    meta.append(["Field", "Labels searched", "SharePoint destination (confirm later)"])
+    meta.append(["Field", "Labels searched", "Destination field (confirm later)"])
     for field, labels in DEFAULT_MAPPINGS:
         meta.append([field, ", ".join(labels), ""])
 
@@ -131,6 +153,6 @@ def write_calibration_workbook(output_path, submitted_id, source_name, pages, ex
 
 
 def extract_to_workbook(pdf_bytes, output_path, submitted_id, source_name="iDocs PDF preview"):
-    pages = extract_pdf_text(pdf_bytes)
-    extracted = extract_fields(pages)
-    return write_calibration_workbook(output_path, submitted_id, source_name, pages, extracted)
+    pages, extracted, verification, note = read_pdf_preview(pdf_bytes, submitted_id)
+    output_path, _ = write_calibration_workbook(output_path, submitted_id, source_name, pages, extracted)
+    return output_path, verification, extracted, pages
